@@ -1,5 +1,5 @@
 # JustTouch
-<img src="assets/images/logo.jpg" alt="Logo" width="120" align="left" style="margin-right: 20px;"/>
+<img src="assets/images/logo.png" alt="Logo" width="120" align="left" style="margin-right: 20px;"/>
 
 
 **JustTouch** is a simple mobile app for Android and iOS that lets you send files with just a tap - literally. Pick one or more files, generate a magnet link, and send it to another device via NFC. The other person gets the link and downloads the file directly. No pairing, no logins, no cloud.
