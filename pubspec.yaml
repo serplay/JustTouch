@@ -1,5 +1,5 @@
 name: justtouch
-description: "A new Flutter project."
+description: "Simple mobile app for Android and iOS that lets you send files with just a tap"
 publish_to: 'none'
 version: 0.1.0
 
