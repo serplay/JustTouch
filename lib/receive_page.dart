@@ -24,6 +24,8 @@ class _ReceivePageState extends State<ReceivePage> {
       }
       
       NFCTag tag = await FlutterNfcKit.poll();
+      
+      // Try to read NDEF records
       if (tag.ndefAvailable == true) {
         final ndef = await FlutterNfcKit.readNDEFRecords();
         if (ndef.isNotEmpty) {
@@ -37,7 +39,7 @@ class _ReceivePageState extends State<ReceivePage> {
               // For text records, skip the first few bytes which contain encoding info
               if (record.type != null && record.type!.isNotEmpty) {
                 // This is likely a text record, skip the language code prefix
-                final languageCodeLength = payload.isNotEmpty ? payload[0] : 0;
+                final languageCodeLength = payload.isNotEmpty ? payload[0] & 0x3F : 0;
                 final startIndex = 1 + languageCodeLength;
                 if (startIndex < payload.length) {
                   message = String.fromCharCodes(payload.sublist(startIndex));
@@ -75,10 +77,21 @@ class _ReceivePageState extends State<ReceivePage> {
           }
         }
       } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Tag does not support NDEF.')),
-          );
+        // Try to read raw data if NDEF is not available
+        try {
+          // Get tag info
+          final tagInfo = tag.toString();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Tag detected: $tagInfo')),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error reading tag: $e')),
+            );
+          }
         }
       }
     } catch (e) {

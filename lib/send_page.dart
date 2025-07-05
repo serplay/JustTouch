@@ -40,12 +40,18 @@ class _SendPageState extends State<SendPage> {
       }
       
       // Poll for NFC tag
-      await FlutterNfcKit.poll();
+      final tag = await FlutterNfcKit.poll();
+      
+      // Check if tag supports NDEF
+      if (tag.ndefAvailable != true) {
+        throw Exception('Tag does not support NDEF writing');
+      }
+      
+      // Create NDEF text record
+      final textRecord = ndef.TextRecord(text: text);
       
       // Write NDEF records
-      await FlutterNfcKit.writeNDEFRecords([
-        ndef.TextRecord(text: text),
-      ]);
+      await FlutterNfcKit.writeNDEFRecords([textRecord]);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
