@@ -27,14 +27,26 @@ class _SendPageState extends State<SendPage> {
       );
       return;
     }
+    
     setState(() {
       _isSending = true;
     });
+    
     try {
+      // Check if NFC is available
+      final availability = await FlutterNfcKit.nfcAvailability;
+      if (availability != NFCAvailability.available) {
+        throw Exception('NFC is not available on this device');
+      }
+      
+      // Poll for NFC tag
       await FlutterNfcKit.poll();
+      
+      // Write NDEF records
       await FlutterNfcKit.writeNDEFRecords([
         ndef.TextRecord(text: text),
       ]);
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Message sent through NFC!')),
@@ -47,7 +59,11 @@ class _SendPageState extends State<SendPage> {
         );
       }
     } finally {
-      await FlutterNfcKit.finish();
+      try {
+        await FlutterNfcKit.finish();
+      } catch (e) {
+        // Ignore finish errors
+      }
       if (mounted) {
         setState(() {
           _isSending = false;

@@ -15,22 +15,62 @@ class _ReceivePageState extends State<ReceivePage> {
     setState(() {
       _isListening = true;
     });
+    
     try {
+      // Check if NFC is available
+      final availability = await FlutterNfcKit.nfcAvailability;
+      if (availability != NFCAvailability.available) {
+        throw Exception('NFC is not available on this device');
+      }
+      
       NFCTag tag = await FlutterNfcKit.poll();
       if (tag.ndefAvailable == true) {
         final ndef = await FlutterNfcKit.readNDEFRecords();
-        if (ndef.isNotEmpty && ndef.first.payload != null) {
-          final payload = ndef.first.payload;
-          final message = String.fromCharCodes(payload?.toList() ?? []);
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Received: $message')),
-            );
+        if (ndef.isNotEmpty) {
+          final record = ndef.first;
+          if (record.payload != null && record.payload!.isNotEmpty) {
+            try {
+              // Handle text records properly
+              final payload = record.payload!;
+              String message;
+              
+              // For text records, skip the first few bytes which contain encoding info
+              if (record.type != null && record.type!.isNotEmpty) {
+                // This is likely a text record, skip the language code prefix
+                final languageCodeLength = payload.isNotEmpty ? payload[0] : 0;
+                final startIndex = 1 + languageCodeLength;
+                if (startIndex < payload.length) {
+                  message = String.fromCharCodes(payload.sublist(startIndex));
+                } else {
+                  message = String.fromCharCodes(payload);
+                }
+              } else {
+                message = String.fromCharCodes(payload);
+              }
+              
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Received: $message')),
+                );
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error reading message: $e')),
+                );
+              }
+            }
+          } else {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('No data on the tag.')),
+              );
+            }
           }
         } else {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('No data on the tag.')),
+              const SnackBar(content: Text('No NDEF records found.')),
             );
           }
         }
@@ -48,7 +88,11 @@ class _ReceivePageState extends State<ReceivePage> {
         );
       }
     } finally {
-      await FlutterNfcKit.finish();
+      try {
+        await FlutterNfcKit.finish();
+      } catch (e) {
+        // Ignore finish errors
+      }
       if (mounted) {
         setState(() {
           _isListening = false;
