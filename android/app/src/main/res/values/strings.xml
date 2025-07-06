@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">JustTouch</string>
+    <string name="servicedesc">JustTouch NFC File Sharing Service</string>
+    <string name="aiddescription">JustTouch NDEF Type 4 Service</string>
+</resources>
