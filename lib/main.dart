@@ -63,19 +63,12 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
   Future<void> _checkNfcAvailability() async {
     final nfcAvailable = await NfcService.isNfcAvailable();
     final hceSupported = await NfcService.isHceSupported();
-    final isDefault = await NfcService.isDefaultService();
     
     setState(() {
       _isNfcAvailable = nfcAvailable;
       _isHceSupported = hceSupported;
-      _isDefaultService = isDefault;
+      _isDefaultService = true; // Always true since we don't need to be default
     });
-    
-    // Only show setup message if NFC is available, HCE is supported, but not sharing yet
-    // and not the default service and no files are selected yet
-    if (hceSupported && !isDefault && !_isSharing && _selectedFiles.isEmpty) {
-      _showMessage('Tap "Touch to Send" to set up NFC service for file sharing');
-    }
   }
 
   Future<void> _requestPermissions() async {
@@ -109,17 +102,6 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
       final hceEnabled = await NfcService.enableHce();
       if (!hceEnabled) {
         throw Exception('Failed to enable NFC service');
-      }
-
-      // Check if we're now the default service (again, user might not be able to set it)
-      await _checkNfcAvailability();
-      final isDefault = await NfcService.isDefaultService();
-      if (!isDefault) {
-        _showMessage('Please set JustTouch as the default NFC service in Settings, then try again');
-        setState(() {
-          _isSharing = false;
-        });
-        return;
       }
 
       // Start the file server
@@ -292,40 +274,38 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
       return 'HCE Not Supported';
     } else if (_selectedFiles.isEmpty) {
       return 'Select Files First';
-    } else if (!_isDefaultService) {
-      return 'Touch to Send';
     } else {
       return 'Touch to Send';
     }
   }
 
   Color _getNfcStatusColor() {
-    if (_isNfcAvailable && _isHceSupported && _isDefaultService) {
+    if (_isNfcAvailable && _isHceSupported) {
       return Colors.green.shade50;
-    } else if (_isNfcAvailable && _isHceSupported) {
-      return Colors.blue.shade50;
-    } else {
+    } else if (_isNfcAvailable) {
       return Colors.orange.shade50;
+    } else {
+      return Colors.red.shade50;
     }
   }
 
   IconData _getNfcStatusIcon() {
-    if (_isNfcAvailable && _isHceSupported && _isDefaultService) {
+    if (_isNfcAvailable && _isHceSupported) {
       return Icons.check_circle;
-    } else if (_isNfcAvailable && _isHceSupported) {
-      return Icons.settings;
+    } else if (_isNfcAvailable) {
+      return Icons.info;
     } else {
       return Icons.warning;
     }
   }
 
   Color _getNfcStatusIconColor() {
-    if (_isNfcAvailable && _isHceSupported && _isDefaultService) {
+    if (_isNfcAvailable && _isHceSupported) {
       return Colors.green;
-    } else if (_isNfcAvailable && _isHceSupported) {
-      return Colors.blue;
-    } else {
+    } else if (_isNfcAvailable) {
       return Colors.orange;
+    } else {
+      return Colors.red;
     }
   }
 
@@ -344,12 +324,12 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
   }
 
   Color _getNfcStatusTextColor() {
-    if (_isNfcAvailable && _isHceSupported && _isDefaultService) {
+    if (_isNfcAvailable && _isHceSupported) {
       return Colors.green.shade700;
-    } else if (_isNfcAvailable && _isHceSupported) {
-      return Colors.blue.shade700;
-    } else {
+    } else if (_isNfcAvailable) {
       return Colors.orange.shade700;
+    } else {
+      return Colors.red.shade700;
     }
   }
 
