@@ -24,13 +24,6 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<!-- NFC Support -->
-	<key>NFCReaderUsageDescription</key>
-	<string>This app uses NFC to share files by emulating NFC tags</string>
-	<key>com.apple.developer.nfc.readersession.felica.systemcodes</key>
-	<array/>
-	<key>com.apple.developer.nfc.readersession.iso7816.select-identifiers</key>
-	<array/>
 	<!-- File Access -->
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app needs access to photo library to share image files</string>
@@ -57,5 +50,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Ta aplikacja potrzebuje dostępu do sieci lokalnej, aby udostępniać pliki</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_http._tcp</string>
+	</array>
 </dict>
 </plist>
