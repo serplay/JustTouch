@@ -5,6 +5,7 @@ import 'models/shared_file.dart';
 import 'services/file_picker_service.dart';
 import 'services/file_server_service.dart';
 import 'services/nfc_service.dart';
+import 'dart:io';
 
 void main() {
   runApp(const JustTouchApp());
@@ -182,8 +183,9 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
 
   Future<void> _stopSharing() async {
     await _fileServer.stopServer();
-    await NfcService.disableHce();
-    
+    if (!Platform.isIOS) {
+      await NfcService.disableHce();
+    }
     setState(() {
       _isSharing = false;
       _serverUrl = null;
@@ -478,11 +480,11 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
                               width: double.infinity,
                               height: 56,
                               child: ElevatedButton.icon(
-                                onPressed: _selectedFiles.isEmpty || !_isNfcAvailable || !_isHceSupported
-                                  ? null
-                                  : _isSharing 
-                                    ? _stopSharing 
-                                    : _startSharing,
+                                onPressed: _isSharing
+                                    ? _stopSharing
+                                    : (_selectedFiles.isEmpty || (!_isNfcAvailable || !_isHceSupported))
+                                        ? null
+                                        : _startSharing,
                                 icon: Icon(_isSharing ? Icons.stop : Icons.nfc),
                                 label: Text(_getButtonText()),
                                 style: ElevatedButton.styleFrom(

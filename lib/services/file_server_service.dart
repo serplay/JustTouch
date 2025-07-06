@@ -7,6 +7,9 @@ import 'package:shelf_static/shelf_static.dart';
 import 'package:mime/mime.dart';
 import 'package:path/path.dart' as p;
 import '../models/shared_file.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:network_info_plus/network_info_plus.dart';
+import 'package:flutter/foundation.dart';
 
 class FileServerService {
   HttpServer? _server;
@@ -26,24 +29,34 @@ class FileServerService {
     _files = files;
 
     try {
-      // Get device IP address
-      final interfaces = await NetworkInterface.list();
       String? deviceIp;
-      
-      for (final interface in interfaces) {
-        for (final addr in interface.addresses) {
-          if (addr.type == InternetAddressType.IPv4 && 
-              !addr.isLoopback && 
-              !addr.address.startsWith('169.254')) {
-            deviceIp = addr.address;
-            break;
-          }
-        }
-        if (deviceIp != null) break;
+      if (kIsWeb) {
+        throw Exception('File server is not supported on web');
       }
-
-      if (deviceIp == null) {
-        throw Exception('Could not find device IP address');
+      if (Platform.isIOS) {
+        // iOS: użyj network_info_plus
+        final info = NetworkInfo();
+        deviceIp = await info.getWifiIP();
+        if (deviceIp == null || deviceIp == '127.0.0.1') {
+          throw Exception('Nie można znaleźć adresu IP urządzenia. Upewnij się, że jesteś połączony z WiFi.');
+        }
+      } else {
+        // Android, desktop: stara metoda
+        final interfaces = await NetworkInterface.list();
+        for (final interface in interfaces) {
+          for (final addr in interface.addresses) {
+            if (addr.type == InternetAddressType.IPv4 && 
+                !addr.isLoopback && 
+                !addr.address.startsWith('169.254')) {
+              deviceIp = addr.address;
+              break;
+            }
+          }
+          if (deviceIp != null) break;
+        }
+        if (deviceIp == null) {
+          throw Exception('Nie można znaleźć adresu IP urządzenia.');
+        }
       }
 
       final router = Router();
