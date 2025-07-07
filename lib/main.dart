@@ -5,6 +5,7 @@ import 'models/shared_file.dart';
 import 'services/file_picker_service.dart';
 import 'services/file_server_service.dart';
 import 'services/nfc_service.dart';
+import 'services/share_service.dart';
 import 'dart:io';
 
 void main() {
@@ -52,6 +53,30 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
     super.initState();
     _checkNfcAvailability();
     _requestPermissions();
+    _initializeShareService();
+  }
+
+  void _initializeShareService() {
+    ShareService.initialize();
+    ShareService.setOnFilesSharedCallback(_handleSharedFiles);
+  }
+
+  void _handleSharedFiles(List<SharedFile> sharedFiles) {
+    setState(() {
+      _selectedFiles = sharedFiles;
+    });
+    
+    // Show a snackbar to indicate files were received
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Received ${sharedFiles.length} file${sharedFiles.length > 1 ? 's' : ''} to share',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   @override

@@ -1,5 +1,7 @@
 package com.example.jtv7
 
+import android.content.Intent
+import android.net.Uri
 import android.nfc.NfcAdapter
 import android.nfc.cardemulation.CardEmulation
 import io.flutter.embedding.android.FlutterActivity
@@ -8,11 +10,22 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.example.jtv7/nfc"
+    private val SHARE_CHANNEL = "com.example.jtv7/share"
     private var nfcAdapter: NfcAdapter? = null
     private var cardEmulation: CardEmulation? = null
+    private var shareMethodChannel: MethodChannel? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        
+        nfcAdapter = NfcAdapter.getDefaultAdapter(this)
+        cardEmulation = CardEmulation.getInstance(nfcAdapter)
+        
+        // Set up share method channel
+        shareMethodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SHARE_CHANNEL)
+        
+        // Handle shared files on app start
+        handleSharedIntent(intent)
         
         nfcAdapter = NfcAdapter.getDefaultAdapter(this)
         cardEmulation = CardEmulation.getInstance(nfcAdapter)
@@ -70,6 +83,84 @@ class MainActivity : FlutterActivity() {
                     result.notImplemented()
                 }
             }
+        }
+    }
+    
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleSharedIntent(intent)
+    }
+    
+    private fun handleSharedIntent(intent: Intent?) {
+        when (intent?.action) {
+            Intent.ACTION_SEND -> {
+                handleSingleFileShare(intent)
+            }
+            Intent.ACTION_SEND_MULTIPLE -> {
+                handleMultipleFileShare(intent)
+            }
+        }
+    }
+    
+    private fun handleSingleFileShare(intent: Intent) {
+        val uri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+        if (uri != null) {
+            val fileName = getFileName(uri) ?: "shared_file"
+            val fileSize = getFileSize(uri)
+            
+            val fileData = mapOf(
+                "path" to uri.toString(),
+                "name" to fileName,
+                "size" to fileSize,
+                "mimeType" to (intent.type ?: "application/octet-stream")
+            )
+            
+            shareMethodChannel?.invokeMethod("onFileShared", listOf(fileData))
+        }
+    }
+    
+    private fun handleMultipleFileShare(intent: Intent) {
+        val uris = intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
+        if (uris != null) {
+            val filesList = uris.mapNotNull { uri ->
+                val fileName = getFileName(uri) ?: "shared_file"
+                val fileSize = getFileSize(uri)
+                
+                mapOf(
+                    "path" to uri.toString(),
+                    "name" to fileName,
+                    "size" to fileSize,
+                    "mimeType" to (intent.type ?: "application/octet-stream")
+                )
+            }
+            
+            shareMethodChannel?.invokeMethod("onFilesShared", filesList)
+        }
+    }
+    
+    private fun getFileName(uri: Uri): String? {
+        return try {
+            contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                if (cursor.moveToFirst() && nameIndex >= 0) {
+                    cursor.getString(nameIndex)
+                } else null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+    
+    private fun getFileSize(uri: Uri): Long {
+        return try {
+            contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                val sizeIndex = cursor.getColumnIndex(android.provider.OpenableColumns.SIZE)
+                if (cursor.moveToFirst() && sizeIndex >= 0) {
+                    cursor.getLong(sizeIndex)
+                } else 0L
+            } ?: 0L
+        } catch (e: Exception) {
+            0L
         }
     }
 }
