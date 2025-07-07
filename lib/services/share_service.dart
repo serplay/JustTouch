@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'dart:typed_data';
 import '../models/shared_file.dart';
 
 class ShareService {
@@ -31,11 +32,22 @@ class ShareService {
   }
 
   static SharedFile _parseSharedFile(Map<dynamic, dynamic> fileData) {
+    // Handle bytes from Android content URIs
+    Uint8List? bytes;
+    if (fileData['bytes'] != null) {
+      final bytesData = fileData['bytes'];
+      if (bytesData is List<int>) {
+        bytes = Uint8List.fromList(bytesData);
+      }
+    }
+    
     return SharedFile(
       path: fileData['path'] as String,
       name: fileData['name'] as String,
       size: (fileData['size'] as num).toInt(),
       mimeType: fileData['mimeType'] as String? ?? 'application/octet-stream',
+      bytes: bytes,
+      isContentUri: fileData['isContentUri'] as bool? ?? false,
     );
   }
 }

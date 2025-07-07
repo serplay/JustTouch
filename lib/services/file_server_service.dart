@@ -119,9 +119,9 @@ class FileServerService {
 
     final file = _files[fileIndex];
     try {
-      // Handle web vs native platforms
-      if (kIsWeb && file.bytes != null) {
-        // Web: use stored bytes
+      // Check if we have bytes (from web or Android content URIs)
+      if (file.bytes != null) {
+        // Use stored bytes (web platform or Android content URIs)
         final mimeType = lookupMimeType(file.fileName) ?? 'application/octet-stream';
         
         return Response.ok(
@@ -132,8 +132,10 @@ class FileServerService {
             'Content-Length': '${file.bytes!.length}',
           },
         );
+      } else if (kIsWeb) {
+        return Response.internalServerError(body: 'File bytes not available on web');
       } else {
-        // Native: read from file path
+        // Native: read from file path (regular files, not content URIs)
         final fileData = await File(file.path).readAsBytes();
         final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
         

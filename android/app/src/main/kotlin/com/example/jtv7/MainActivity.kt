@@ -107,12 +107,15 @@ class MainActivity : FlutterActivity() {
         if (uri != null) {
             val fileName = getFileName(uri) ?: "shared_file"
             val fileSize = getFileSize(uri)
+            val fileBytes = readContentUri(uri)
             
             val fileData = mapOf(
                 "path" to uri.toString(),
                 "name" to fileName,
                 "size" to fileSize,
-                "mimeType" to (intent.type ?: "application/octet-stream")
+                "mimeType" to (intent.type ?: "application/octet-stream"),
+                "bytes" to fileBytes,
+                "isContentUri" to true
             )
             
             shareMethodChannel?.invokeMethod("onFileShared", listOf(fileData))
@@ -125,12 +128,15 @@ class MainActivity : FlutterActivity() {
             val filesList = uris.mapNotNull { uri ->
                 val fileName = getFileName(uri) ?: "shared_file"
                 val fileSize = getFileSize(uri)
+                val fileBytes = readContentUri(uri)
                 
                 mapOf(
                     "path" to uri.toString(),
                     "name" to fileName,
                     "size" to fileSize,
-                    "mimeType" to (intent.type ?: "application/octet-stream")
+                    "mimeType" to (intent.type ?: "application/octet-stream"),
+                    "bytes" to fileBytes,
+                    "isContentUri" to true
                 )
             }
             
@@ -161,6 +167,16 @@ class MainActivity : FlutterActivity() {
             } ?: 0L
         } catch (e: Exception) {
             0L
+        }
+    }
+    
+    private fun readContentUri(uri: Uri): ByteArray? {
+        return try {
+            contentResolver.openInputStream(uri)?.use { inputStream ->
+                inputStream.readBytes()
+            }
+        } catch (e: Exception) {
+            null
         }
     }
 }
