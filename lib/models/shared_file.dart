@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:path/path.dart' as p;
 
 class SharedFile {
@@ -5,12 +6,14 @@ class SharedFile {
   final String path;
   final int size;
   final String mimeType;
+  final Uint8List? bytes; // Desktop
 
   SharedFile({
     required this.name,
     required this.path,
     required this.size,
     required this.mimeType,
+    this.bytes,
   });
 
   String get fileName => p.basename(name);

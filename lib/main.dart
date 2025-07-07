@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'models/shared_file.dart';
@@ -47,18 +49,42 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
   bool _isDefaultService = false;
   bool _isSharing = false;
   String? _serverUrl;
+  bool _isDesktop = false;
 
   @override
   void initState() {
     super.initState();
+    _checkPlatform();
     _checkNfcAvailability();
     _requestPermissions();
     _initializeShareService();
   }
 
+  void _checkPlatform() {
+    // For web, treat as desktop
+    if (kIsWeb) {
+      _isDesktop = true;
+    } else {
+      try {
+        _isDesktop = Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+      } catch (e) {
+        // Fallback for platforms that don't support Platform
+        _isDesktop = true;
+      }
+    }
+  }
+
   void _initializeShareService() {
-    ShareService.initialize();
-    ShareService.setOnFilesSharedCallback(_handleSharedFiles);
+    // Share service is Android-only, skip on desktop and web
+    if (!_isDesktop && !kIsWeb) {
+      try {
+        ShareService.initialize();
+        ShareService.setOnFilesSharedCallback(_handleSharedFiles);
+      } catch (e) {
+        // Ignore share service errors on unsupported platforms
+        print('Share service error (ignored): $e');
+      }
+    }
   }
 
   void _handleSharedFiles(List<SharedFile> sharedFiles) {
@@ -86,6 +112,16 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
   }
 
   Future<void> _checkNfcAvailability() async {
+    // Skip NFC checks on desktop platforms
+    if (_isDesktop) {
+      setState(() {
+        _isNfcAvailable = false;
+        _isHceSupported = false;
+        _isDefaultService = false;
+      });
+      return;
+    }
+
     final nfcAvailable = await NfcService.isNfcAvailable();
     final hceSupported = await NfcService.isHceSupported();
     
@@ -97,6 +133,9 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
   }
 
   Future<void> _requestPermissions() async {
+    // Skip permissions on web - they're not needed/supported
+    if (kIsWeb) return;
+    
     await [
       Permission.storage,
       Permission.photos,
@@ -116,6 +155,11 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
     if (_selectedFiles.isEmpty) {
       _showMessage('Please select files to share first');
       return;
+    }
+
+    // On desktop, use QR-only sharing
+    if (_isDesktop) {
+      return _startQrOnlySharing();
     }
 
     try {
@@ -190,9 +234,19 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
 
   Future<void> _stopSharing() async {
     await _fileServer.stopServer();
-    if (!Platform.isIOS) {
-      await NfcService.disableHce();
+    
+    // Only disable NFC on platforms that support it (Android, not desktop/web/iOS)
+    if (!kIsWeb && !_isDesktop) {
+      try {
+        if (!Platform.isIOS) {
+          await NfcService.disableHce();
+        }
+      } catch (e) {
+        // Ignore NFC errors on unsupported platforms
+        print('NFC disable error (ignored): $e');
+      }
     }
+    
     setState(() {
       _isSharing = false;
       _serverUrl = null;
@@ -223,17 +277,19 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  '📱 Scan QR Code',
-                  style: TextStyle(
+                Text(
+                  _isDesktop ? '�️ Share Files' : '�📱 Scan QR Code',
+                  style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'Scan this QR code with any camera app to access the files',
-                  style: TextStyle(
+                Text(
+                  _isDesktop 
+                    ? 'Scan this QR code with a mobile device or copy the URL below'
+                    : 'Scan this QR code with any camera app to access the files',
+                  style: const TextStyle(
                     fontSize: 16,
                     color: Colors.grey,
                   ),
@@ -250,7 +306,7 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
                   child: QrImageView(
                     data: _serverUrl!,
                     version: QrVersions.auto,
-                    size: 200.0,
+                    size: _isDesktop ? 250.0 : 200.0,
                     backgroundColor: Colors.white,
                   ),
                 ),
@@ -261,26 +317,63 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
                     color: Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(
-                    _serverUrl!,
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 12,
-                    ),
-                    textAlign: TextAlign.center,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _serverUrl!,
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 12,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      if (_isDesktop) ...[
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: () => _copyToClipboard(_serverUrl!),
+                          icon: const Icon(Icons.copy, size: 18),
+                          tooltip: 'Copy URL',
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                Row(
+                  children: [
+                    if (_isDesktop) ...[
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _copyToClipboard(_serverUrl!),
+                          icon: const Icon(Icons.copy),
+                          label: const Text('Copy URL'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey.shade200,
+                            foregroundColor: Colors.grey.shade800,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text('Close'),
+                      ),
                     ),
-                  ),
-                  child: const Text('Close'),
+                  ],
                 ),
               ],
             ),
@@ -305,6 +398,9 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
   }
 
   Color _getNfcStatusColor() {
+    if (_isDesktop) {
+      return Colors.blue.shade50;
+    }
     if (_isNfcAvailable && _isHceSupported) {
       return Colors.green.shade50;
     } else if (_isNfcAvailable) {
@@ -315,6 +411,9 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
   }
 
   IconData _getNfcStatusIcon() {
+    if (_isDesktop) {
+      return Icons.computer;
+    }
     if (_isNfcAvailable && _isHceSupported) {
       return Icons.check_circle;
     } else if (_isNfcAvailable) {
@@ -325,6 +424,9 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
   }
 
   Color _getNfcStatusIconColor() {
+    if (_isDesktop) {
+      return Colors.blue;
+    }
     if (_isNfcAvailable && _isHceSupported) {
       return Colors.green;
     } else if (_isNfcAvailable) {
@@ -335,6 +437,9 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
   }
 
   String _getNfcStatusText() {
+    if (_isDesktop) {
+      return 'Desktop Mode - QR Code sharing available';
+    }
     if (!_isNfcAvailable) {
       return 'NFC not available - QR code sharing available';
     } else if (!_isHceSupported) {
@@ -349,6 +454,9 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
   }
 
   Color _getNfcStatusTextColor() {
+    if (_isDesktop) {
+      return Colors.blue.shade700;
+    }
     if (_isNfcAvailable && _isHceSupported) {
       return Colors.green.shade700;
     } else if (_isNfcAvailable) {
@@ -392,9 +500,9 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'NFC File Sharing Made Simple',
-                      style: TextStyle(
+                    Text(
+                      _isDesktop ? 'QR Code File Sharing' : 'NFC File Sharing Made Simple',
+                      style: const TextStyle(
                         fontSize: 16,
                         color: Colors.white70,
                       ),
@@ -481,40 +589,64 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
                               ),
                             ),
                             const SizedBox(height: 12),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 56,
-                              child: ElevatedButton.icon(
-                                onPressed: _isSharing
-                                    ? _stopSharing
-                                    : (_selectedFiles.isEmpty || (!_isNfcAvailable || !_isHceSupported))
-                                        ? null
-                                        : _startSharing,
-                                icon: Icon(_isSharing ? Icons.stop : Icons.nfc),
-                                label: Text(_getButtonText()),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: _isSharing 
-                                    ? Colors.red.shade400 
-                                    : Theme.of(context).colorScheme.primary,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
+                            
+                            // Desktop: Show QR Code button as primary
+                            if (_isDesktop) ...[
+                              if (_selectedFiles.isNotEmpty) ...[
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 56,
+                                  child: ElevatedButton.icon(
+                                    onPressed: _isSharing ? _showQrCode : _startQrOnlySharing,
+                                    icon: const Icon(Icons.qr_code),
+                                    label: Text(_isSharing ? 'Show QR Code' : 'Start Sharing'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Theme.of(context).colorScheme.primary,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
-                            // QR Code button - always visible when files are selected
-                            if (_selectedFiles.isNotEmpty) ...[
-                              const SizedBox(height: 12),
+                                if (_isSharing) ...[
+                                  const SizedBox(height: 12),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 56,
+                                    child: ElevatedButton.icon(
+                                      onPressed: _stopSharing,
+                                      icon: const Icon(Icons.stop),
+                                      label: const Text('Stop Sharing'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red.shade400,
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(16),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ]
+                            // Mobile: Show NFC button as primary, QR as secondary
+                            else ...[
                               SizedBox(
                                 width: double.infinity,
                                 height: 56,
                                 child: ElevatedButton.icon(
-                                  onPressed: _isSharing ? _showQrCode : _startQrOnlySharing,
-                                  icon: const Icon(Icons.qr_code),
-                                  label: Text(_isSharing ? 'Show QR Code' : 'Share via QR Code'),
+                                  onPressed: _isSharing
+                                      ? _stopSharing
+                                      : (_selectedFiles.isEmpty || (!_isNfcAvailable || !_isHceSupported))
+                                          ? null
+                                          : _startSharing,
+                                  icon: Icon(_isSharing ? Icons.stop : Icons.nfc),
+                                  label: Text(_getButtonText()),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.orange.shade400,
+                                    backgroundColor: _isSharing 
+                                      ? Colors.red.shade400 
+                                      : Theme.of(context).colorScheme.primary,
                                     foregroundColor: Colors.white,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(16),
@@ -522,7 +654,29 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
                                   ),
                                 ),
                               ),
+                              // QR Code button - always visible when files are selected on mobile
+                              if (_selectedFiles.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 56,
+                                  child: ElevatedButton.icon(
+                                    onPressed: _isSharing ? _showQrCode : _startQrOnlySharing,
+                                    icon: const Icon(Icons.qr_code),
+                                    label: Text(_isSharing ? 'Show QR Code' : 'Share via QR Code'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.orange.shade400,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ],
+                            
+                            // Status info when sharing
                             if (_isSharing && _serverUrl != null) ...[
                               const SizedBox(height: 16),
                               Container(
@@ -537,7 +691,9 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
-                                        'Touch your phone to another device now...',
+                                        _isDesktop 
+                                          ? 'Server running! Scan the QR code to access files...'
+                                          : 'Touch your phone to another device now...',
                                         style: TextStyle(
                                           color: Colors.blue.shade700,
                                           fontWeight: FontWeight.w500,
@@ -671,6 +827,19 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
         return Icons.text_snippet;
       default:
         return Icons.insert_drive_file;
+    }
+  }
+
+  Future<void> _copyToClipboard(String text) async {
+    await Clipboard.setData(ClipboardData(text: text));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('URL copied to clipboard!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
     }
   }
 }

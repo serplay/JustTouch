@@ -1,9 +1,7 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_router/shelf_router.dart';
-import 'package:shelf_static/shelf_static.dart';
 import 'package:mime/mime.dart';
 import 'package:path/path.dart' as p;
 import '../models/shared_file.dart';
@@ -121,17 +119,33 @@ class FileServerService {
 
     final file = _files[fileIndex];
     try {
-      final fileData = await File(file.path).readAsBytes();
-      final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
-      
-      return Response.ok(
-        fileData,
-        headers: {
-          'Content-Type': mimeType,
-          'Content-Disposition': 'attachment; filename="${file.fileName}"',
-          'Content-Length': '${fileData.length}',
-        },
-      );
+      // Handle web vs native platforms
+      if (kIsWeb && file.bytes != null) {
+        // Web: use stored bytes
+        final mimeType = lookupMimeType(file.fileName) ?? 'application/octet-stream';
+        
+        return Response.ok(
+          file.bytes!,
+          headers: {
+            'Content-Type': mimeType,
+            'Content-Disposition': 'attachment; filename="${file.fileName}"',
+            'Content-Length': '${file.bytes!.length}',
+          },
+        );
+      } else {
+        // Native: read from file path
+        final fileData = await File(file.path).readAsBytes();
+        final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
+        
+        return Response.ok(
+          fileData,
+          headers: {
+            'Content-Type': mimeType,
+            'Content-Disposition': 'attachment; filename="${file.fileName}"',
+            'Content-Length': '${fileData.length}',
+          },
+        );
+      }
     } catch (e) {
       return Response.internalServerError(body: 'Error reading file: $e');
     }

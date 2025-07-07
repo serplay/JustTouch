@@ -2,14 +2,24 @@
 <img src="assets/images/logo.png" alt="Logo" width="120" align="left" style="margin-right: 20px;"/>
 
 
-**JustTouch** is a simple mobile app for Android and iOS that lets you send files with just a tap, literally. Pick one or more files, generate a web link, and send it to another device via NFC. The other person gets the link and downloads the file directly. No pairing, no logins, no cloud, no app installation required.
-* For now, users need to be connected to the same WIFI network.
+**JustTouch** is a cross-platform file sharing app for Android, iOS, Windows, macOS, and Linux. Share files with just a tap on mobile devices via NFC, or use QR codes on any platform. Pick one or more files, generate a web link, and send it to another device. The other person gets the link and downloads the file directly. No pairing, no logins, no cloud, no app installation required.
+
+## Platforms
+
+### 📱 Mobile (Android/iOS)
+- **NFC sharing**: Touch devices to share instantly. (Android only - Apple sucks)
+- **QR code sharing**: Scan codes to share
+- **Share menu integration**: Share from Gallery, Files, etc. (Android)
+
+### 🖥️ Desktop (Windows/macOS/Linux)
+- **QR code sharing**: Primary sharing method- **File server**: Local HTTP server for file hosting
+
 
 ## What It Does
 
-- Lets you choose one or more files from your phone
+- Lets you choose one or more files from your device
 - Creates a web link for the selected files
-- Sends that web link via NFC to the other device
+- Shares that web link via NFC (mobile) or QR code (all platforms)
 - The receiving device uses the link to download the file(s)
 
 ## How It Works
