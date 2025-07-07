@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'dart:ui';
 import 'models/shared_file.dart';
 import 'services/file_picker_service.dart';
 import 'services/file_server_service.dart';
@@ -22,10 +23,10 @@ class JustTouchApp extends StatelessWidget {
     return MaterialApp(
       title: 'JustTouch',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primarySwatch: Colors.pink,
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF667eea),
+          seedColor: const Color(0xFFE91E63),
           brightness: Brightness.light,
         ),
       ),
@@ -474,7 +475,12 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+            colors: [
+              Color(0xFFE91E63), // Pink
+              Color(0xFF9C27B0), // Purple
+              Color(0xFF673AB7), // Deep Purple
+            ],
+            stops: [0.0, 0.5, 1.0],
           ),
         ),
         child: SafeArea(
