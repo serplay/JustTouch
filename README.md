@@ -29,6 +29,7 @@
    - Select the file(s) you want to share
    - Tap your phone to another device - the web link is sent via NFC
    - The receiver gets the link open in their browser and downloads the file(s)
+   * Note: Both devices must be connected to the same Wi-Fi network for NFC sharing to work.
 
 2. **Receiver:**
    - Just Touch.
