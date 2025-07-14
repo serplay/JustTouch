@@ -10,7 +10,7 @@ import CoreNFC
   ) -> Bool {
     
     let controller = window?.rootViewController as! FlutterViewController
-    let nfcChannel = FlutterMethodChannel(name: "com.example.jtv7/nfc", binaryMessenger: controller.binaryMessenger)
+    let nfcChannel = FlutterMethodChannel(name: "com.hackclub.justtouch/nfc", binaryMessenger: controller.binaryMessenger)
     
     nfcChannel.setMethodCallHandler { [weak self] (call: FlutterMethodCall, result: @escaping FlutterResult) in
       switch call.method {

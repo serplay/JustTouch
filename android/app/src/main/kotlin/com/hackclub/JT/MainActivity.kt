@@ -1,4 +1,4 @@
-package com.example.jtv7
+package com.hackclub.JT
 
 import android.content.Intent
 import android.net.Uri
@@ -9,8 +9,8 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
-    private val CHANNEL = "com.example.jtv7/nfc"
-    private val SHARE_CHANNEL = "com.example.jtv7/share"
+    private val CHANNEL = "com.hackclub.justtouch/nfc"
+    private val SHARE_CHANNEL = "com.hackclub.justtouch/share"
     private var nfcAdapter: NfcAdapter? = null
     private var cardEmulation: CardEmulation? = null
     private var shareMethodChannel: MethodChannel? = null

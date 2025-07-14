@@ -10,6 +10,9 @@ import 'services/file_server_service.dart';
 import 'services/nfc_service.dart';
 import 'services/share_service.dart';
 import 'dart:io';
+import 'package:desktop_drop/desktop_drop.dart';
+import 'dart:typed_data';
+import 'package:mime/mime.dart';
 
 void main() {
   runApp(const JustTouchApp());
@@ -576,23 +579,25 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
                             SizedBox(
                               width: double.infinity,
                               height: 56,
-                              child: ElevatedButton.icon(
-                                onPressed: _isSharing ? null : _pickFiles,
-                                icon: const Icon(Icons.folder_open),
-                                label: Text(_selectedFiles.isEmpty 
-                                  ? 'Select Files' 
-                                  : 'Select Different Files'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Theme.of(context).colorScheme.surface,
-                                  foregroundColor: Theme.of(context).colorScheme.primary,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                    side: BorderSide(
-                                      color: Theme.of(context).colorScheme.primary,
+                              child: (Platform.isMacOS)
+                                  ? const SizedBox.shrink()
+                                  : ElevatedButton.icon(
+                                      onPressed: _isSharing ? null : _pickFiles,
+                                      icon: const Icon(Icons.folder_open),
+                                      label: Text(_selectedFiles.isEmpty 
+                                          ? 'Select Files' 
+                                          : 'Select Different Files'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Theme.of(context).colorScheme.surface,
+                                        foregroundColor: Theme.of(context).colorScheme.primary,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(16),
+                                          side: BorderSide(
+                                            color: Theme.of(context).colorScheme.primary,
+                                          ),
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ),
-                              ),
                             ),
                             const SizedBox(height: 12),
                             
@@ -725,6 +730,57 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
   }
 
   Widget _buildEmptyState() {
+    if (_isDesktop) {
+      return DropTarget(
+        onDragDone: (details) async {
+          final files = <SharedFile>[];
+          for (final droppedFile in details.files) {
+            final file = File(droppedFile.path);
+            final fileStats = await file.stat();
+            final mimeType = lookupMimeType(droppedFile.path) ?? 'application/octet-stream';
+            files.add(SharedFile(
+              name: file.path.split(Platform.pathSeparator).last,
+              path: file.path,
+              size: fileStats.size,
+              mimeType: mimeType,
+            ));
+          }
+          setState(() {
+            _selectedFiles = files;
+          });
+        },
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.folder_open,
+                size: 80,
+                color: Colors.grey.shade400,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Drag & drop files here',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Or click "Select Files", to choose manually',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey.shade500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -758,6 +814,32 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
   }
 
   Widget _buildFileList() {
+    if (_isDesktop) {
+      return DropTarget(
+        onDragDone: (details) async {
+          final files = <SharedFile>[];
+          for (final droppedFile in details.files) {
+            final file = File(droppedFile.path);
+            final fileStats = await file.stat();
+            final mimeType = lookupMimeType(droppedFile.path) ?? 'application/octet-stream';
+            files.add(SharedFile(
+              name: file.path.split(Platform.pathSeparator).last,
+              path: file.path,
+              size: fileStats.size,
+              mimeType: mimeType,
+            ));
+          }
+          setState(() {
+            _selectedFiles.addAll(files);
+          });
+        },
+        child: _buildFileListView(),
+      );
+    }
+    return _buildFileListView();
+  }
+
+  Widget _buildFileListView() {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: _selectedFiles.length,

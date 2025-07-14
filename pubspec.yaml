@@ -1,4 +1,4 @@
-name: jtv7
+name: justtouch
 description: "JustTouch - NFC File Sharing App"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -54,6 +54,9 @@ dependencies:
   
   # QR code generation
   qr_flutter: ^4.1.0
+  desktop_drop: ^0.6.0
+  flutter_launcher_icons: ^0.14.4
+  change_app_package_name: ^1.5.0
 
 dev_dependencies:
   flutter_test:
@@ -70,6 +73,11 @@ dev_dependencies:
 # following page: https://dart.dev/tools/pub/pubspec
 
 # The following section is specific to Flutter packages.
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/logo.png"
+
 flutter:
 
   # The following line ensures that the Material Icons font is

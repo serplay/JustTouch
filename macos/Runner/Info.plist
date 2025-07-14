@@ -28,5 +28,7 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>This app needs permission to see files so you can send them.</string>
 </dict>
 </plist>

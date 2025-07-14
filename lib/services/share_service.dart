@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import '../models/shared_file.dart';
 
 class ShareService {
-  static const MethodChannel _channel = MethodChannel('com.example.jtv7/share');
+  static const MethodChannel _channel = MethodChannel('com.hackclub.justtouch/share');
   static Function(List<SharedFile>)? _onFilesSharedCallback;
 
   static void initialize() {

@@ -1,4 +1,4 @@
-package com.example.jtv7
+package com.hackclub.justtouch
 
 import android.content.Intent
 import android.nfc.NdefMessage

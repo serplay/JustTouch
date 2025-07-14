@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 
 class NfcService {
-  static const MethodChannel _channel = MethodChannel('com.example.jtv7/nfc');
+  static const MethodChannel _channel = MethodChannel('com.hackclub.justtouch/nfc');
 
   static Future<bool> isNfcAvailable() async {
     try {
