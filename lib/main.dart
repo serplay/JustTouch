@@ -3,16 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'dart:ui';
+import 'package:mime/mime.dart';
+import 'package:desktop_drop/desktop_drop.dart';
 import 'models/shared_file.dart';
 import 'services/file_picker_service.dart';
 import 'services/file_server_service.dart';
 import 'services/nfc_service.dart';
 import 'services/share_service.dart';
 import 'dart:io';
-import 'package:desktop_drop/desktop_drop.dart';
-import 'dart:typed_data';
-import 'package:mime/mime.dart';
 
 void main() {
   runApp(const JustTouchApp());
@@ -137,8 +135,8 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
   }
 
   Future<void> _requestPermissions() async {
-    // Skip permissions on web - they're not needed/supported
-    if (kIsWeb) return;
+    // Skip permissions on web and macOS - they're not needed/supported
+    if (kIsWeb || Platform.isMacOS) return;
     
     await [
       Permission.storage,

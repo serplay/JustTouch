@@ -7,7 +7,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:jtv7/main.dart';
+import 'package:justtouch/main.dart';
 
 void main() {
   testWidgets('JustTouch app smoke test', (WidgetTester tester) async {

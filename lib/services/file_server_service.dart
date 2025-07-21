@@ -36,10 +36,28 @@ class FileServerService {
         final info = NetworkInfo();
         deviceIp = await info.getWifiIP();
         if (deviceIp == null || deviceIp == '127.0.0.1') {
-          throw Exception('Nie można znaleźć adresu IP urządzenia. Upewnij się, że jesteś połączony z WiFi.');
+          throw Exception('Could not find device IP address. Make sure you are connected to WiFi.');
+        }
+      } else if (Platform.isMacOS) {
+        // macOS: znajdź prawdziwy adres IP sieci lokalnej
+        final interfaces = await NetworkInterface.list();
+        for (final interface in interfaces) {
+          for (final addr in interface.addresses) {
+            if (addr.type == InternetAddressType.IPv4 && 
+                !addr.isLoopback && 
+                !addr.address.startsWith('169.254') &&
+                !addr.address.startsWith('127.')) {
+              deviceIp = addr.address;
+              break;
+            }
+          }
+          if (deviceIp != null) break;
+        }
+        if (deviceIp == null) {
+          throw Exception('Could not find device IP address on macOS. Make sure you are connected to a network.');
         }
       } else {
-        // Android, desktop: stara metoda
+        // Android, Windows, Linux: stara metoda
         final interfaces = await NetworkInterface.list();
         for (final interface in interfaces) {
           for (final addr in interface.addresses) {
@@ -53,7 +71,7 @@ class FileServerService {
           if (deviceIp != null) break;
         }
         if (deviceIp == null) {
-          throw Exception('Nie można znaleźć adresu IP urządzenia.');
+          throw Exception('Could not find device IP address.');
         }
       }
 
@@ -74,7 +92,7 @@ class FileServerService {
 
       _server = await io.serve(
         handler,
-        InternetAddress.tryParse(deviceIp)!,
+        InternetAddress.anyIPv4,
         port,
       );
 
@@ -147,6 +165,7 @@ class FileServerService {
             'Content-Length': '${fileData.length}',
           },
         );
+
       }
     } catch (e) {
       return Response.internalServerError(body: 'Error reading file: $e');

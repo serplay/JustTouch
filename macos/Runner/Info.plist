@@ -30,5 +30,11 @@
 	<string>NSApplication</string>
 	<key>NSDocumentsFolderUsageDescription</key>
 	<string>This app needs permission to see files so you can send them.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>This app needs to access your local network to share files with other devices.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_http._tcp</string>
+	</array>
 </dict>
 </plist>

@@ -51,7 +51,7 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Ta aplikacja potrzebuje dostępu do sieci lokalnej, aby udostępniać pliki</string>
+	<string>This app needs access to local network to share files</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_http._tcp</string>
