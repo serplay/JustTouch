@@ -8,8 +8,10 @@ import '../models/shared_file.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:network_info_plus/network_info_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:logging/logging.dart';
 
 class FileServerService {
+  static final Logger _logger = Logger('FileServerService');
   HttpServer? _server;
   List<SharedFile> _files = [];
   static const int port = 8080;
@@ -36,15 +38,17 @@ class FileServerService {
         final info = NetworkInfo();
         deviceIp = await info.getWifiIP();
         if (deviceIp == null || deviceIp == '127.0.0.1') {
-          throw Exception('Could not find device IP address. Make sure you are connected to WiFi.');
+          throw Exception(
+            'Could not find device IP address. Make sure you are connected to WiFi.',
+          );
         }
       } else if (Platform.isMacOS) {
         // macOS: znajdź prawdziwy adres IP sieci lokalnej
         final interfaces = await NetworkInterface.list();
         for (final interface in interfaces) {
           for (final addr in interface.addresses) {
-            if (addr.type == InternetAddressType.IPv4 && 
-                !addr.isLoopback && 
+            if (addr.type == InternetAddressType.IPv4 &&
+                !addr.isLoopback &&
                 !addr.address.startsWith('169.254') &&
                 !addr.address.startsWith('127.')) {
               deviceIp = addr.address;
@@ -54,15 +58,17 @@ class FileServerService {
           if (deviceIp != null) break;
         }
         if (deviceIp == null) {
-          throw Exception('Could not find device IP address on macOS. Make sure you are connected to a network.');
+          throw Exception(
+            'Could not find device IP address on macOS. Make sure you are connected to a network.',
+          );
         }
       } else {
         // Android, Windows, Linux: stara metoda
         final interfaces = await NetworkInterface.list();
         for (final interface in interfaces) {
           for (final addr in interface.addresses) {
-            if (addr.type == InternetAddressType.IPv4 && 
-                !addr.isLoopback && 
+            if (addr.type == InternetAddressType.IPv4 &&
+                !addr.isLoopback &&
                 !addr.address.startsWith('169.254')) {
               deviceIp = addr.address;
               break;
@@ -79,10 +85,10 @@ class FileServerService {
 
       // Home page with file listing
       router.get('/', _handleHomePage);
-      
+
       // Download individual files
       router.get('/download/<fileIndex>', _handleFileDownload);
-      
+
       // Download all files as ZIP (future enhancement)
       router.get('/download-all', _handleDownloadAll);
 
@@ -90,18 +96,14 @@ class FileServerService {
           .addMiddleware(logRequests())
           .addHandler(router.call);
 
-      _server = await io.serve(
-        handler,
-        InternetAddress.anyIPv4,
-        port,
-      );
+      _server = await io.serve(handler, InternetAddress.anyIPv4, port);
 
       final serverUrl = 'http://$deviceIp:$port';
       _serverUrl = serverUrl;
-      print('File server started at $serverUrl');
+      _logger.info('File server started at $serverUrl');
       return serverUrl;
     } catch (e) {
-      print('Error starting server: $e');
+      _logger.severe('Error starting server: $e');
       return null;
     }
   }
@@ -112,7 +114,7 @@ class FileServerService {
       _server = null;
       _files.clear();
       _serverUrl = null;
-      print('File server stopped');
+      _logger.info('File server stopped');
     }
   }
 
@@ -140,8 +142,9 @@ class FileServerService {
       // Check if we have bytes (from web or Android content URIs)
       if (file.bytes != null) {
         // Use stored bytes (web platform or Android content URIs)
-        final mimeType = lookupMimeType(file.fileName) ?? 'application/octet-stream';
-        
+        final mimeType =
+            lookupMimeType(file.fileName) ?? 'application/octet-stream';
+
         return Response.ok(
           file.bytes!,
           headers: {
@@ -151,12 +154,15 @@ class FileServerService {
           },
         );
       } else if (kIsWeb) {
-        return Response.internalServerError(body: 'File bytes not available on web');
+        return Response.internalServerError(
+          body: 'File bytes not available on web',
+        );
       } else {
         // Native: read from file path (regular files, not content URIs)
         final fileData = await File(file.path).readAsBytes();
-        final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
-        
+        final mimeType =
+            lookupMimeType(file.path) ?? 'application/octet-stream';
+
         return Response.ok(
           fileData,
           headers: {
@@ -165,7 +171,6 @@ class FileServerService {
             'Content-Length': '${fileData.length}',
           },
         );
-
       }
     } catch (e) {
       return Response.internalServerError(body: 'Error reading file: $e');
@@ -183,27 +188,63 @@ class FileServerService {
     buffer.writeln('<html lang="en">');
     buffer.writeln('<head>');
     buffer.writeln('    <meta charset="UTF-8">');
-    buffer.writeln('    <meta name="viewport" content="width=device-width, initial-scale=1.0">');
+    buffer.writeln(
+      '    <meta name="viewport" content="width=device-width, initial-scale=1.0">',
+    );
     buffer.writeln('    <title>JustTouch - File Share</title>');
     buffer.writeln('    <style>');
-    buffer.writeln('        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }');
-    buffer.writeln('        .container { max-width: 800px; margin: 0 auto; background: white; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); overflow: hidden; }');
-    buffer.writeln('        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }');
-    buffer.writeln('        .header h1 { margin: 0; font-size: 2.5em; font-weight: 300; }');
-    buffer.writeln('        .header p { margin: 10px 0 0 0; opacity: 0.9; font-size: 1.1em; }');
+    buffer.writeln(
+      '        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }',
+    );
+    buffer.writeln(
+      '        .container { max-width: 800px; margin: 0 auto; background: white; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); overflow: hidden; }',
+    );
+    buffer.writeln(
+      '        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }',
+    );
+    buffer.writeln(
+      '        .header h1 { margin: 0; font-size: 2.5em; font-weight: 300; }',
+    );
+    buffer.writeln(
+      '        .header p { margin: 10px 0 0 0; opacity: 0.9; font-size: 1.1em; }',
+    );
     buffer.writeln('        .content { padding: 30px; }');
-    buffer.writeln('        .file-list { list-style: none; padding: 0; margin: 0; }');
-    buffer.writeln('        .file-item { display: flex; align-items: center; justify-content: space-between; padding: 15px; margin: 10px 0; background: #f8f9fa; border-radius: 12px; transition: all 0.3s ease; }');
-    buffer.writeln('        .file-item:hover { background: #e9ecef; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }');
-    buffer.writeln('        .file-info { display: flex; align-items: center; flex: 1; }');
-    buffer.writeln('        .file-icon { width: 40px; height: 40px; background: #667eea; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 15px; color: white; font-weight: bold; }');
-    buffer.writeln('        .file-details h3 { margin: 0; font-size: 1.1em; color: #333; }');
-    buffer.writeln('        .file-details p { margin: 5px 0 0 0; color: #666; font-size: 0.9em; }');
-    buffer.writeln('        .download-btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 500; text-decoration: none; transition: all 0.3s ease; }');
-    buffer.writeln('        .download-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3); }');
-    buffer.writeln('        .empty-state { text-align: center; padding: 60px 20px; color: #666; }');
-    buffer.writeln('        .empty-state h2 { color: #333; margin-bottom: 10px; }');
-    buffer.writeln('        @media (max-width: 600px) { .file-item { flex-direction: column; text-align: center; } .file-info { flex-direction: column; margin-bottom: 15px; } .file-icon { margin-right: 0; margin-bottom: 10px; } }');
+    buffer.writeln(
+      '        .file-list { list-style: none; padding: 0; margin: 0; }',
+    );
+    buffer.writeln(
+      '        .file-item { display: flex; align-items: center; justify-content: space-between; padding: 15px; margin: 10px 0; background: #f8f9fa; border-radius: 12px; transition: all 0.3s ease; }',
+    );
+    buffer.writeln(
+      '        .file-item:hover { background: #e9ecef; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }',
+    );
+    buffer.writeln(
+      '        .file-info { display: flex; align-items: center; flex: 1; }',
+    );
+    buffer.writeln(
+      '        .file-icon { width: 40px; height: 40px; background: #667eea; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 15px; color: white; font-weight: bold; }',
+    );
+    buffer.writeln(
+      '        .file-details h3 { margin: 0; font-size: 1.1em; color: #333; }',
+    );
+    buffer.writeln(
+      '        .file-details p { margin: 5px 0 0 0; color: #666; font-size: 0.9em; }',
+    );
+    buffer.writeln(
+      '        .download-btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 500; text-decoration: none; transition: all 0.3s ease; }',
+    );
+    buffer.writeln(
+      '        .download-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3); }',
+    );
+    buffer.writeln(
+      '        .empty-state { text-align: center; padding: 60px 20px; color: #666; }',
+    );
+    buffer.writeln(
+      '        .empty-state h2 { color: #333; margin-bottom: 10px; }',
+    );
+    buffer.writeln(
+      '        @media (max-width: 600px) { .file-item { flex-direction: column; text-align: center; } .file-info { flex-direction: column; margin-bottom: 15px; } .file-icon { margin-right: 0; margin-bottom: 10px; } }',
+    );
     buffer.writeln('    </style>');
     buffer.writeln('</head>');
     buffer.writeln('<body>');
@@ -217,7 +258,9 @@ class FileServerService {
     if (_files.isEmpty) {
       buffer.writeln('            <div class="empty-state">');
       buffer.writeln('                <h2>No files shared</h2>');
-      buffer.writeln('                <p>The sender hasn\'t selected any files to share yet.</p>');
+      buffer.writeln(
+        '                <p>The sender hasn\'t selected any files to share yet.</p>',
+      );
       buffer.writeln('            </div>');
     } else {
       buffer.writeln('            <ul class="file-list">');
@@ -225,16 +268,24 @@ class FileServerService {
         final file = _files[i];
         final extension = p.extension(file.fileName).toLowerCase();
         final icon = _getFileIcon(extension);
-        
+
         buffer.writeln('                <li class="file-item">');
         buffer.writeln('                    <div class="file-info">');
-        buffer.writeln('                        <div class="file-icon">$icon</div>');
+        buffer.writeln(
+          '                        <div class="file-icon">$icon</div>',
+        );
         buffer.writeln('                        <div class="file-details">');
-        buffer.writeln('                            <h3>${_escapeHtml(file.fileName)}</h3>');
-        buffer.writeln('                            <p>${file.sizeFormatted} • ${file.mimeType}</p>');
+        buffer.writeln(
+          '                            <h3>${_escapeHtml(file.fileName)}</h3>',
+        );
+        buffer.writeln(
+          '                            <p>${file.sizeFormatted} • ${file.mimeType}</p>',
+        );
         buffer.writeln('                        </div>');
         buffer.writeln('                    </div>');
-        buffer.writeln('                    <a href="/download/$i" class="download-btn">Download</a>');
+        buffer.writeln(
+          '                    <a href="/download/$i" class="download-btn">Download</a>',
+        );
         buffer.writeln('                </li>');
       }
       buffer.writeln('            </ul>');

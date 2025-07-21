@@ -5,6 +5,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:mime/mime.dart';
 import 'package:desktop_drop/desktop_drop.dart';
+import 'package:logging/logging.dart';
 import 'models/shared_file.dart';
 import 'services/file_picker_service.dart';
 import 'services/file_server_service.dart';
@@ -13,6 +14,13 @@ import 'services/share_service.dart';
 import 'dart:io';
 
 void main() {
+  // Initialize logging
+  Logger.root.level = Level.ALL;
+  Logger.root.onRecord.listen((record) {
+    if (record.error != null) {}
+    if (record.stackTrace != null) {}
+  });
+
   runApp(const JustTouchApp());
 }
 
@@ -44,6 +52,7 @@ class JustTouchHomePage extends StatefulWidget {
 }
 
 class _JustTouchHomePageState extends State<JustTouchHomePage> {
+  static final Logger _logger = Logger('JustTouchHomePage');
   final FileServerService _fileServer = FileServerService();
   List<SharedFile> _selectedFiles = [];
   bool _isNfcAvailable = false;
@@ -84,7 +93,7 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
         ShareService.setOnFilesSharedCallback(_handleSharedFiles);
       } catch (e) {
         // Ignore share service errors on unsupported platforms
-        print('Share service error (ignored): $e');
+        _logger.warning('Share service error (ignored): $e');
       }
     }
   }
@@ -93,7 +102,7 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
     setState(() {
       _selectedFiles = sharedFiles;
     });
-    
+
     // Show a snackbar to indicate files were received
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -126,7 +135,7 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
 
     final nfcAvailable = await NfcService.isNfcAvailable();
     final hceSupported = await NfcService.isHceSupported();
-    
+
     setState(() {
       _isNfcAvailable = nfcAvailable;
       _isHceSupported = hceSupported;
@@ -137,7 +146,7 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
   Future<void> _requestPermissions() async {
     // Skip permissions on web and macOS - they're not needed/supported
     if (kIsWeb || Platform.isMacOS) return;
-    
+
     await [
       Permission.storage,
       Permission.photos,
@@ -223,7 +232,7 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
       });
 
       _showMessage('Server started! Use QR code to share files.');
-      
+
       // Automatically show QR code
       _showQrCode();
     } catch (e) {
@@ -236,7 +245,7 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
 
   Future<void> _stopSharing() async {
     await _fileServer.stopServer();
-    
+
     // Only disable NFC on platforms that support it (Android, not desktop/web/iOS)
     if (!kIsWeb && !_isDesktop) {
       try {
@@ -245,10 +254,10 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
         }
       } catch (e) {
         // Ignore NFC errors on unsupported platforms
-        print('NFC disable error (ignored): $e');
+        _logger.warning('NFC disable error (ignored): $e');
       }
     }
-    
+
     setState(() {
       _isSharing = false;
       _serverUrl = null;
@@ -266,7 +275,7 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
 
   void _showQrCode() {
     if (_serverUrl == null) return;
-    
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -288,13 +297,10 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  _isDesktop 
-                    ? 'Scan this QR code with a mobile device or copy the URL below'
-                    : 'Scan this QR code with any camera app to access the files',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
-                  ),
+                  _isDesktop
+                      ? 'Scan this QR code with a mobile device or copy the URL below'
+                      : 'Scan this QR code with any camera app to access the files',
+                  style: const TextStyle(fontSize: 16, color: Colors.grey),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
@@ -366,7 +372,9 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
                       child: ElevatedButton(
                         onPressed: () => Navigator.of(context).pop(),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.primary,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -492,11 +500,7 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
                 padding: const EdgeInsets.all(24.0),
                 child: Column(
                   children: [
-                    const Icon(
-                      Icons.touch_app,
-                      size: 80,
-                      color: Colors.white,
-                    ),
+                    const Icon(Icons.touch_app, size: 80, color: Colors.white),
                     const SizedBox(height: 16),
                     const Text(
                       'JustTouch',
@@ -508,7 +512,9 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      _isDesktop ? 'QR Code File Sharing' : 'NFC File Sharing Made Simple',
+                      _isDesktop
+                          ? 'QR Code File Sharing'
+                          : 'NFC File Sharing Made Simple',
                       style: const TextStyle(
                         fontSize: 16,
                         color: Colors.white70,
@@ -517,7 +523,7 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
                   ],
                 ),
               ),
-              
+
               // Content
               Expanded(
                 child: Container(
@@ -561,14 +567,14 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
                           ],
                         ),
                       ),
-                      
+
                       // File List
                       Expanded(
                         child: _selectedFiles.isEmpty
-                          ? _buildEmptyState()
-                          : _buildFileList(),
+                            ? _buildEmptyState()
+                            : _buildFileList(),
                       ),
-                      
+
                       // Action Buttons
                       Padding(
                         padding: const EdgeInsets.all(16),
@@ -582,23 +588,33 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
                                   : ElevatedButton.icon(
                                       onPressed: _isSharing ? null : _pickFiles,
                                       icon: const Icon(Icons.folder_open),
-                                      label: Text(_selectedFiles.isEmpty 
-                                          ? 'Select Files' 
-                                          : 'Select Different Files'),
+                                      label: Text(
+                                        _selectedFiles.isEmpty
+                                            ? 'Select Files'
+                                            : 'Select Different Files',
+                                      ),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: Theme.of(context).colorScheme.surface,
-                                        foregroundColor: Theme.of(context).colorScheme.primary,
+                                        backgroundColor: Theme.of(
+                                          context,
+                                        ).colorScheme.surface,
+                                        foregroundColor: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                           side: BorderSide(
-                                            color: Theme.of(context).colorScheme.primary,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
                                           ),
                                         ),
                                       ),
                                     ),
                             ),
                             const SizedBox(height: 12),
-                            
+
                             // Desktop: Show QR Code button as primary
                             if (_isDesktop) ...[
                               if (_selectedFiles.isNotEmpty) ...[
@@ -606,11 +622,19 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
                                   width: double.infinity,
                                   height: 56,
                                   child: ElevatedButton.icon(
-                                    onPressed: _isSharing ? _showQrCode : _startQrOnlySharing,
+                                    onPressed: _isSharing
+                                        ? _showQrCode
+                                        : _startQrOnlySharing,
                                     icon: const Icon(Icons.qr_code),
-                                    label: Text(_isSharing ? 'Show QR Code' : 'Start Sharing'),
+                                    label: Text(
+                                      _isSharing
+                                          ? 'Show QR Code'
+                                          : 'Start Sharing',
+                                    ),
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: Theme.of(context).colorScheme.primary,
+                                      backgroundColor: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
                                       foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(16),
@@ -631,7 +655,9 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
                                         backgroundColor: Colors.red.shade400,
                                         foregroundColor: Colors.white,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -647,15 +673,19 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
                                 child: ElevatedButton.icon(
                                   onPressed: _isSharing
                                       ? _stopSharing
-                                      : (_selectedFiles.isEmpty || (!_isNfcAvailable || !_isHceSupported))
-                                          ? null
-                                          : _startSharing,
-                                  icon: Icon(_isSharing ? Icons.stop : Icons.nfc),
+                                      : (_selectedFiles.isEmpty ||
+                                            (!_isNfcAvailable ||
+                                                !_isHceSupported))
+                                      ? null
+                                      : _startSharing,
+                                  icon: Icon(
+                                    _isSharing ? Icons.stop : Icons.nfc,
+                                  ),
                                   label: Text(_getButtonText()),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: _isSharing 
-                                      ? Colors.red.shade400 
-                                      : Theme.of(context).colorScheme.primary,
+                                    backgroundColor: _isSharing
+                                        ? Colors.red.shade400
+                                        : Theme.of(context).colorScheme.primary,
                                     foregroundColor: Colors.white,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(16),
@@ -670,9 +700,15 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
                                   width: double.infinity,
                                   height: 56,
                                   child: ElevatedButton.icon(
-                                    onPressed: _isSharing ? _showQrCode : _startQrOnlySharing,
+                                    onPressed: _isSharing
+                                        ? _showQrCode
+                                        : _startQrOnlySharing,
                                     icon: const Icon(Icons.qr_code),
-                                    label: Text(_isSharing ? 'Show QR Code' : 'Share via QR Code'),
+                                    label: Text(
+                                      _isSharing
+                                          ? 'Show QR Code'
+                                          : 'Share via QR Code',
+                                    ),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.orange.shade400,
                                       foregroundColor: Colors.white,
@@ -684,7 +720,7 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
                                 ),
                               ],
                             ],
-                            
+
                             // Status info when sharing
                             if (_isSharing && _serverUrl != null) ...[
                               const SizedBox(height: 16),
@@ -696,13 +732,16 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
                                 ),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.info, color: Colors.blue.shade600),
+                                    Icon(
+                                      Icons.info,
+                                      color: Colors.blue.shade600,
+                                    ),
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
-                                        _isDesktop 
-                                          ? 'Server running! Scan the QR code to access files...'
-                                          : 'Touch your phone to another device now...',
+                                        _isDesktop
+                                            ? 'Server running! Scan the QR code to access files...'
+                                            : 'Touch your phone to another device now...',
                                         style: TextStyle(
                                           color: Colors.blue.shade700,
                                           fontWeight: FontWeight.w500,
@@ -735,13 +774,16 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
           for (final droppedFile in details.files) {
             final file = File(droppedFile.path);
             final fileStats = await file.stat();
-            final mimeType = lookupMimeType(droppedFile.path) ?? 'application/octet-stream';
-            files.add(SharedFile(
-              name: file.path.split(Platform.pathSeparator).last,
-              path: file.path,
-              size: fileStats.size,
-              mimeType: mimeType,
-            ));
+            final mimeType =
+                lookupMimeType(droppedFile.path) ?? 'application/octet-stream';
+            files.add(
+              SharedFile(
+                name: file.path.split(Platform.pathSeparator).last,
+                path: file.path,
+                size: fileStats.size,
+                mimeType: mimeType,
+              ),
+            );
           }
           setState(() {
             _selectedFiles = files;
@@ -751,11 +793,7 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.folder_open,
-                size: 80,
-                color: Colors.grey.shade400,
-              ),
+              Icon(Icons.folder_open, size: 80, color: Colors.grey.shade400),
               const SizedBox(height: 16),
               Text(
                 'Drag & drop files here',
@@ -768,10 +806,7 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
               const SizedBox(height: 8),
               Text(
                 'Or click "Select Files", to choose manually',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey.shade500,
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -783,11 +818,7 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.folder_open,
-            size: 80,
-            color: Colors.grey.shade400,
-          ),
+          Icon(Icons.folder_open, size: 80, color: Colors.grey.shade400),
           const SizedBox(height: 16),
           Text(
             'No files selected',
@@ -800,10 +831,7 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
           const SizedBox(height: 8),
           Text(
             'Tap "Select Files" to choose files to share',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey.shade500,
-            ),
+            style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
             textAlign: TextAlign.center,
           ),
         ],
@@ -819,13 +847,16 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
           for (final droppedFile in details.files) {
             final file = File(droppedFile.path);
             final fileStats = await file.stat();
-            final mimeType = lookupMimeType(droppedFile.path) ?? 'application/octet-stream';
-            files.add(SharedFile(
-              name: file.path.split(Platform.pathSeparator).last,
-              path: file.path,
-              size: fileStats.size,
-              mimeType: mimeType,
-            ));
+            final mimeType =
+                lookupMimeType(droppedFile.path) ?? 'application/octet-stream';
+            files.add(
+              SharedFile(
+                name: file.path.split(Platform.pathSeparator).last,
+                path: file.path,
+                size: fileStats.size,
+                mimeType: mimeType,
+              ),
+            );
           }
           setState(() {
             _selectedFiles.addAll(files);
@@ -848,10 +879,7 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
           child: ListTile(
             leading: CircleAvatar(
               backgroundColor: Theme.of(context).colorScheme.primary,
-              child: Icon(
-                _getFileIcon(file.fileName),
-                color: Colors.white,
-              ),
+              child: Icon(_getFileIcon(file.fileName), color: Colors.white),
             ),
             title: Text(
               file.fileName,
@@ -860,11 +888,13 @@ class _JustTouchHomePageState extends State<JustTouchHomePage> {
             subtitle: Text('${file.sizeFormatted} • ${file.mimeType}'),
             trailing: IconButton(
               icon: const Icon(Icons.remove_circle_outline),
-              onPressed: _isSharing ? null : () {
-                setState(() {
-                  _selectedFiles.removeAt(index);
-                });
-              },
+              onPressed: _isSharing
+                  ? null
+                  : () {
+                      setState(() {
+                        _selectedFiles.removeAt(index);
+                      });
+                    },
             ),
           ),
         );

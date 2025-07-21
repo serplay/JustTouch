@@ -52,6 +52,9 @@ dependencies:
   # MIME type detection
   mime: ^2.0.0
   
+  # Logging
+  logging: ^1.2.0
+  
   # QR code generation
   qr_flutter: ^4.1.0
   desktop_drop: ^0.6.0
